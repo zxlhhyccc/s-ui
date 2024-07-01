@@ -5,7 +5,7 @@
         {{ $t('actions.' + title) + " " + $t('objects.client') }}
       </v-card-title>
       <v-divider></v-divider>
-      <v-card-text style="padding: 0 16px;">
+      <v-card-text style="padding: 0 16px; overflow-y: scroll;">
         <v-container style="padding: 0;">
           <v-tabs
             v-model="tab"
@@ -26,6 +26,9 @@
                 <v-col cols="12" sm="6" md="4">
                   <v-text-field v-model="client.name" :label="$t('client.name')" hide-details></v-text-field>
                 </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-text-field v-model="client.desc" :label="$t('client.desc')" hide-details></v-text-field>
+                </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" sm="6" md="4">
@@ -33,6 +36,33 @@
                 </v-col>
                 <v-col cols="12" sm="6" md="4">
                   <DatePick :expiry="expDate" @submit="setDate" />
+                </v-col>
+              </v-row>
+              <v-row v-if="index != -1">
+                <v-col cols="12" sm="6" md="4" class="d-flex flex-column">
+                  <div class="d-flex justify-space-between align-center">
+                    <div>
+                      {{ $t('stats.usage') }}: {{ total }}<sup dir="ltr" v-if="percent>0">({{ percent }}%)</sup>
+                    </div>
+                    <v-btn density="compact" variant="text" icon="mdi-restore" @click="client.up=0;client.down=0">
+                      <v-tooltip activator="parent" location="top">
+                        {{ $t('reset') }}
+                      </v-tooltip>
+                      <v-icon />
+                    </v-btn>
+                  </div>
+                  <v-progress-linear
+                    v-model="percent"
+                    :color="percentColor"
+                    v-if="client.volume>0"
+                    bottom
+                  >
+                  </v-progress-linear>
+                </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-icon icon="mdi-upload" color="orange" /><span class="text-orange">{{ up }}</span>
+                  / 
+                  <v-icon icon="mdi-download" color="success" /><span class="text-success">{{ down }}</span>
                 </v-col>
               </v-row>
               <v-row>
@@ -139,6 +169,7 @@
         <v-btn
           color="blue-darken-1"
           variant="tonal"
+          :loading="loading"
           @click="saveChanges"
         >
           {{ $t('actions.save') }}
@@ -152,6 +183,7 @@
 import { Link } from '@/plugins/link'
 import { createClient, randomConfigs, updateConfigs } from '@/types/clients'
 import DatePick from '@/components/DateTime.vue'
+import { HumanReadable } from '@/plugins/utils'
 
 export default {
   props: ['visible', 'data', 'index', 'inboundTags', 'stats'],
@@ -160,6 +192,7 @@ export default {
     return {
       client: createClient(),
       title: "add",
+      loading: false,
       clientStats: false,
       tab: "t1",
       clientConfig: <any>[],
@@ -174,7 +207,7 @@ export default {
         const newData = JSON.parse(this.$props.data)
         this.client = createClient(newData)
         this.title = "edit"
-        this.clientConfig = JSON.parse(this.client.config)
+        this.clientConfig = this.client.config
       }
       else {
         this.client = createClient()
@@ -182,10 +215,9 @@ export default {
         this.clientConfig = randomConfigs('client')
       }
       this.clientStats = this.$props.stats
-      const allLinks = <Link[]>JSON.parse(this.client.links)
-      this.links = allLinks.filter(l => l.type == 'local')
-      this.extLinks = allLinks.filter(l => l.type == 'external')
-      this.subLinks = allLinks.filter(l => l.type == 'sub')
+      this.links = this.client.links.filter(l => l.type == 'local')
+      this.extLinks = this.client.links.filter(l => l.type == 'external')
+      this.subLinks = this.client.links.filter(l => l.type == 'sub')
       this.tab = "t1"
     },
     closeModal() {
@@ -193,12 +225,14 @@ export default {
       this.$emit('close')
     },
     saveChanges() {
-      this.client.config = updateConfigs(JSON.stringify(this.clientConfig), this.client.name)
-      this.client.links = JSON.stringify([
-                            ...this.links,
-                            ...this.extLinks.filter(l => l.uri != ''),
-                            ...this.subLinks.filter(l => l.uri != '')])
+      this.loading = true
+      this.client.config = updateConfigs(this.clientConfig, this.client.name)
+      this.client.links = [
+                        ...this.links,
+                        ...this.extLinks.filter(l => l.uri != ''),
+                        ...this.subLinks.filter(l => l.uri != '')]
       this.$emit('save', this.client, this.clientStats)
+      this.loading = false
     },
     setDate(newDate:number){
       this.client.expiry = newDate
@@ -206,8 +240,8 @@ export default {
   },
   computed: {
     clientInbounds: {
-      get() { return this.client.inbounds == "" ? [] : this.client.inbounds.split(',') },
-      set(newValue:string[]) { this.client.inbounds = newValue.length == 0 ?  "" : newValue.join(',') }
+      get() { return this.client.inbounds.length>0 ? this.client.inbounds.filter(i => this.inboundTags.includes(i)) : [] },
+      set(newValue:string[]) { this.client.inbounds = newValue.length == 0 ?  [] : newValue }
     },
     expDate: {
       get() { return this.client.expiry},
@@ -216,11 +250,17 @@ export default {
     Volume: {
       get() { return this.client.volume == 0 ? 0 : (this.client.volume / (1024 ** 3)) },
       set(v:number) { this.client.volume = v > 0 ? v*(1024 ** 3) : 0 }
-    }
+    },
+    up() :string { return HumanReadable.sizeFormat(this.client.up) },
+    down() :string { return HumanReadable.sizeFormat(this.client.down) },
+    total() :string { return HumanReadable.sizeFormat(this.client.down + this.client.up) },
+    percent() :number { return this.client.volume>0 ? Math.round((this.client.up + this.client.down) *100 / this.client.volume) : 0 },
+    percentColor() :string { return (this.client.up+this.client.down) >= this.client.volume ? 'error' : this.percent>90 ? 'warning' : 'success' },
   },
   watch: {
-      visible(newValue) { if (newValue) {
-          this.updateData()
+    visible(newValue) {
+      if (newValue) {
+        this.updateData()
       }
     },
   },

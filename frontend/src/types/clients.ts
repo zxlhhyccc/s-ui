@@ -1,28 +1,31 @@
+import { Link } from "@/plugins/link"
 import RandomUtil from "@/plugins/randomUtil"
 
 export interface Client {
   id?: number
 	enable: boolean
 	name: string
-	config: string
-	inbounds: string
-  links: string
+	config: Config
+	inbounds: string[]
+  links: Link[]
 	volume: number
 	expiry: number
   up: number
   down: number
+  desc: string
 }
 
 const defaultClient: Client = {
   enable: true,
   name: "",
-  config: "[]",
-  inbounds: "",
-  links: "[]",
+  config: {},
+  inbounds: [],
+  links: [],
   volume: 0,
   expiry: 0,
   up: 0,
   down: 0,
+  desc: "",
 }
 
 type Config = {
@@ -33,12 +36,11 @@ type Config = {
   }
 }
 
-export function updateConfigs(configs: string, newUserName: string): string {
-  const updatedConfigs: Config = JSON.parse(configs)
+export function updateConfigs(configs: Config, newUserName: string): Config {
 
-  for (const key in updatedConfigs) {
-    if (updatedConfigs.hasOwnProperty(key)) {
-      const config = updatedConfigs[key]
+  for (const key in configs) {
+    if (configs.hasOwnProperty(key)) {
+      const config = configs[key]
       if (config.hasOwnProperty("name")) {
         config.name = newUserName
       } else if (config.hasOwnProperty("username")) {
@@ -47,7 +49,7 @@ export function updateConfigs(configs: string, newUserName: string): string {
     }
   }
 
-  return JSON.stringify(updatedConfigs)
+  return configs
 }
 
 export function randomConfigs(user: string): Config {
@@ -110,6 +112,7 @@ export function randomConfigs(user: string): Config {
 }
 
 export function createClient<T extends Client>(json?: Partial<T>): Client {
+  defaultClient.name = RandomUtil.randomSeq(8)
   const defaultObject: Client = { ...defaultClient, ...(json || {}) }
   return defaultObject
 }

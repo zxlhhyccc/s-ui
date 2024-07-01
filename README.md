@@ -2,7 +2,8 @@
 **An Advanced Web Panel • Built on SagerNet/Sing-Box**
 
 ![](https://img.shields.io/github/v/release/alireza0/s-ui.svg)
-![](https://img.shields.io/docker/pulls/alireza7/s-ui.svg)
+![S-UI Docker pull](https://img.shields.io/docker/pulls/alireza7/s-ui.svg)
+![S-UI-Singbox Docker pull](https://img.shields.io/docker/pulls/alireza7/s-ui-singbox.svg)
 [![Downloads](https://img.shields.io/github/downloads/alireza0/s-ui/total.svg)](https://img.shields.io/github/downloads/alireza0/s-ui/total.svg)
 [![License](https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
@@ -22,7 +23,7 @@
 | Multi-Client/Inbound                   | :heavy_check_mark: |
 | Advanced Traffic Routing Interface     | :heavy_check_mark: |
 | Client & Traffic & System Status       | :heavy_check_mark: |
-| Subscription Service (link + info)     | :heavy_check_mark: |
+| Subscription Service (link/json + info)| :heavy_check_mark: |
 | Dark/Light Theme                       | :heavy_check_mark: |
 
 
@@ -75,10 +76,20 @@ curl -fsSL https://get.docker.com | sh
 
 **Step 2:** Install S-UI
 
+> Docker compose method
+
+```shell
+mkdir s-ui && cd s-ui
+wget -q https://raw.githubusercontent.com/alireza0/s-ui/main/docker-compose.yml
+docker compose up -d
+```
+
+> Use docker for s-ui only
+
 ```shell
 mkdir s-ui && cd s-ui
 docker run -itd \
-    -p 2095:2095 -p 443:443 -p 80:80 \
+    -p 2095:2095 -p 2096:2096 -p 443:443 -p 80:80 \
     -v $PWD/db/:/usr/local/s-ui/db/ \
     -v $PWD/cert/:/root/cert/ \
     --name s-ui --restart=unless-stopped \
@@ -93,11 +104,63 @@ docker build -t s-ui .
 
 </details>
 
+## Manual run + contribution
+
+<details>
+   <summary>Click for details</summary>
+
+### Build and run whole project
+```shell
+./runSUI.sh
+```
+
+### - Frontend
+
+Frontend codes are in `frontend` folder in the root of repository.
+
+To run it localy for instant developement you can use (apply automatic changes on file save):
+```shell
+cd frontend
+npm run dev
+```
+> By this command it will run a `vite` web server on separate port `3000`, with backend proxy to `http://localhost:2095`. You can change it in `frontend/vite.config.mts`.
+
+To build fronend:
+```shell
+cd frontend
+npm run build
+```
+
+### - Backend
+Backend codes are in `backend` folder in the root of repository.
+> Please build fronend once before!
+
+To build backend:
+```shell
+cd backend
+
+# remove old frontend compiled files
+rm -fr web/html/*
+# apply new frontend compiled files
+cp -R ../frontend/dist/ web/html/
+# build
+go build -o ../sui main.go
+```
+
+To run backend (from root folder of repository):
+```shell
+./sui
+```
+
+</details>
+
 ## Languages
 
 - English
 - Farsi
+- Vietnamese
 - Chinese (Simplified)
+- Chinese (Traditional)
 
 ## Features
 
@@ -156,4 +219,4 @@ certbot certonly --standalone --register-unsafely-without-email --non-interactiv
 </details>
 
 ## Stargazers over Time
-[![Stargazers over time](https://starchart.cc/alireza0/s-ui.svg?variant=adaptive)](https://starchart.cc/alireza0/s-ui)
+[![Stargazers over time](https://starchart.cc/alireza0/s-ui.svg)](https://starchart.cc/alireza0/s-ui)
